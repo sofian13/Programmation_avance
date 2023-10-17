@@ -1,0 +1,85 @@
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+using namespace std;
+
+class RiverCrossing {
+private:
+    mutex mtx;                // Mutex pour protéger l'accès aux variables d'état
+    condition_variable cv;    // Variable conditionnelle pour synchroniser les threads
+    int hackers = 0;               // Nombre total de hackers en attente
+    int serfs = 0;                 // Nombre total de serfs en attente
+    int boarded_hackers = 0;       // Nombre de hackers actuellement à bord
+    int boarded_serfs = 0;         // Nombre de serfs actuellement à bord
+
+public:
+    void board(bool isHacker) {
+        unique_lock<mutex> lock(mtx);
+
+        if (isHacker) {
+            hackers++;
+        } else {
+            serfs++;
+        }
+
+        // Attendre jusqu'à ce qu'il soit sûr de monter à bord
+        cv.wait(lock, [&]() {
+            return ((hackers == 4) || (serfs == 4) ||
+                    (hackers >= 2 && serfs >= 2 &&
+                     boarded_hackers + boarded_serfs == 0));
+        });
+
+        if (isHacker && (boarded_hackers == 0 || boarded_hackers == 1 || boarded_hackers == 3 || (boarded_hackers==2 && boarded_serfs==0))) {
+            hackers--;
+            boarded_hackers++;
+            cout << "Hacker is boarding.\n";
+        } else {
+            serfs--;
+            boarded_serfs++;
+            cout << "Serf is boarding.\n";
+        }
+
+        // Si le bateau est plein, réinitialisez les compteurs et naviguez
+        if (boarded_hackers + boarded_serfs == 4) {
+            rowBoat();
+            boarded_hackers = 0;
+            boarded_serfs = 0;
+            cv.notify_all();
+        }
+    }
+
+    void rowBoat() {
+        cout << "Boat is being rowed!\n\n";
+    }
+};
+
+void hackerTask(RiverCrossing& rc) {
+    rc.board(true);
+}
+
+void serfTask(RiverCrossing& rc) {
+    rc.board(false);
+}
+
+int main() {
+    RiverCrossing rc;
+
+    thread hackers[20];
+    thread serfs[20];
+
+    // Créer 20 threads pour les hackers et 20 pour les serfs
+    for (int i = 0; i < 20; i++) {
+        hackers[i] = thread(hackerTask, ref(rc));
+        serfs[i] = thread(serfTask, ref(rc));
+    }
+
+    // Attendre que tous les threads se terminent
+    for (int i = 0; i < 20; i++) {
+        hackers[i].join();
+        serfs[i].join();
+    }
+
+    return 0;
+}
