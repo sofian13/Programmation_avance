@@ -5,80 +5,82 @@
 
 using namespace std;
 
-class RiverCrossing {
+class NavetteStade {
 private:
-    mutex mtx;                // Mutex pour protéger l'accès aux variables d'état
-    condition_variable cv;    // Variable conditionnelle pour synchroniser les threads
-    int hackers = 0;               // Nombre total de hackers en attente
-    int serfs = 0;                 // Nombre total de serfs en attente
-    int boarded_hackers = 0;       // Nombre de hackers actuellement à bord
-    int boarded_serfs = 0;         // Nombre de serfs actuellement à bord
+    mutex mtx;                            // Mutex pour protéger l'accès aux variables d'état
+    condition_variable cv;                // Variable conditionnelle pour synchroniser les threads
+    int supportersPSG = 0;               // Nombre total de supporters du PSG en attente
+    int supportersOM = 0;                // Nombre total de supporters de l'OM en attente
+    int embarques_PSG = 0;              // Nombre de supporters du PSG actuellement à bord
+    int embarques_OM = 0;               // Nombre de supporters de l'OM actuellement à bord
 
 public:
-    void board(bool isHacker) {
-        unique_lock<mutex> lock(mtx);
+    void monter(bool estPSG) {
+        unique_lock<mutex> verrou(mtx); // crée un objet de type unique_lock
 
-        if (isHacker) {
-            hackers++;
+        if (estPSG) {
+            supportersPSG++;
         } else {
-            serfs++;
+            supportersOM++;
         }
 
         // Attendre jusqu'à ce qu'il soit sûr de monter à bord
-        cv.wait(lock, [&]() {
-            return ((hackers == 4) || (serfs == 4) ||
-                    (hackers >= 2 && serfs >= 2 &&
-                     boarded_hackers + boarded_serfs == 0));
+        cv.wait(verrou, [&]() {
+            return ((supportersPSG == 4) || (supportersOM == 4) ||
+                    (supportersPSG == 2 && supportersOM == 2 &&
+                     embarques_PSG + embarques_OM == 0));
         });
 
-        if (isHacker && (boarded_hackers == 0 || boarded_hackers == 1 || boarded_hackers == 3 || (boarded_hackers==2 && boarded_serfs==0))) {
-            hackers--;
-            boarded_hackers++;
-            cout << "Hacker is boarding.\n";
-        } else {
-            serfs--;
-            boarded_serfs++;
-            cout << "Serf is boarding.\n";
+        cout << estPSG << " : " << embarques_PSG << " : " << embarques_OM << "\n";
+
+        if (estPSG && ((embarques_PSG == 0 && embarques_OM <= 2) || embarques_PSG == 1 || embarques_PSG == 3 || (embarques_PSG == 2 && embarques_OM == 0))) {
+            supportersPSG--;
+            embarques_PSG++;
+            cout << "Un supporter du PSG monte à bord.\n";
+        } else if (!estPSG && ((embarques_OM == 0 && embarques_PSG <= 2) || embarques_OM == 1 || embarques_OM == 3 || (embarques_OM == 2 and embarques_PSG == 0))) {
+            supportersOM--;
+            embarques_OM++;
+            cout << "Un supporter de l'OM monte à bord.\n";
         }
 
-        // Si le bateau est plein, réinitialisez les compteurs et naviguez
-        if (boarded_hackers + boarded_serfs == 4) {
-            rowBoat();
-            boarded_hackers = 0;
-            boarded_serfs = 0;
-            cv.notify_all();
+        // Si la navette est pleine, réinitialisez les compteurs et naviguez
+        if (embarques_PSG + embarques_OM == 4) {
+            naviguer();
+            embarques_PSG = 0;
+            embarques_OM = 0;
+            cv.notify_all(); // tous les threads qui étaient en attente se réveille
         }
     }
 
-    void rowBoat() {
-        cout << "Boat is being rowed!\n\n";
+    void naviguer() {
+        cout << "La navette démarre vers le stade!\n\n";
     }
 };
 
-void hackerTask(RiverCrossing& rc) {
-    rc.board(true);
+void tachePSG(NavetteStade& ns) {
+    ns.monter(true);
 }
 
-void serfTask(RiverCrossing& rc) {
-    rc.board(false);
+void tacheOM(NavetteStade& ns) {
+    ns.monter(false);
 }
 
 int main() {
-    RiverCrossing rc;
+    NavetteStade ns;
 
-    thread hackers[20];
-    thread serfs[20];
+    thread psgSupporters[40];
+    thread omSupporters[40];
 
-    // Créer 20 threads pour les hackers et 20 pour les serfs
-    for (int i = 0; i < 20; i++) {
-        hackers[i] = thread(hackerTask, ref(rc));
-        serfs[i] = thread(serfTask, ref(rc));
+    // Créer 20 threads pour les supporters du PSG et 20 pour les supporters de l'OM
+    for (int i = 0; i < 40; i++) {
+        psgSupporters[i] = thread(tachePSG, ref(ns));
+        omSupporters[i] = thread(tacheOM, ref(ns));
     }
 
     // Attendre que tous les threads se terminent
-    for (int i = 0; i < 20; i++) {
-        hackers[i].join();
-        serfs[i].join();
+    for (int i = 0; i < 40; i++) {
+        psgSupporters[i].join();
+        omSupporters[i].join();
     }
 
     return 0;
