@@ -26,18 +26,17 @@ public:
 
         // Attendre jusqu'à ce qu'il soit sûr de monter à bord
         cv.wait(verrou, [&]() {
-            return ((supportersPSG == 4) || (supportersOM == 4) ||
-                    (supportersPSG == 2 && supportersOM == 2 &&
+            return ((supportersPSG >= 4 && embarques_OM == 0) || 
+                    (supportersOM >= 4 && embarques_PSG == 0) ||
+                    (supportersPSG >= 2 && supportersOM >= 2 && 
                      embarques_PSG + embarques_OM == 0));
         });
 
-        cout << estPSG << " : " << embarques_PSG << " : " << embarques_OM << "\n";
-
-        if (estPSG && ((embarques_PSG == 0 && embarques_OM <= 2) || embarques_PSG == 1 || embarques_PSG == 3 || (embarques_PSG == 2 && embarques_OM == 0))) {
+        if (estPSG && embarques_PSG < 4) {
             supportersPSG--;
             embarques_PSG++;
             cout << "Un supporter du PSG monte à bord.\n";
-        } else if (!estPSG && ((embarques_OM == 0 && embarques_PSG <= 2) || embarques_OM == 1 || embarques_OM == 3 || (embarques_OM == 2 and embarques_PSG == 0))) {
+        } else if (!estPSG && embarques_OM < 4) {
             supportersOM--;
             embarques_OM++;
             cout << "Un supporter de l'OM monte à bord.\n";
@@ -49,6 +48,8 @@ public:
             embarques_PSG = 0;
             embarques_OM = 0;
             cv.notify_all(); // tous les threads qui étaient en attente se réveille
+        } else {
+            cv.notify_one(); // notifier un autre supporter pour vérifier s'il peut monter.
         }
     }
 
@@ -68,17 +69,17 @@ void tacheOM(NavetteStade& ns) {
 int main() {
     NavetteStade ns;
 
-    thread psgSupporters[40];
-    thread omSupporters[40];
+    thread psgSupporters[20];
+    thread omSupporters[20];
 
     // Créer 20 threads pour les supporters du PSG et 20 pour les supporters de l'OM
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 20; i++) {
         psgSupporters[i] = thread(tachePSG, ref(ns));
         omSupporters[i] = thread(tacheOM, ref(ns));
     }
 
     // Attendre que tous les threads se terminent
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 20; i++) {
         psgSupporters[i].join();
         omSupporters[i].join();
     }
