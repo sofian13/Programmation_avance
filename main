@@ -3,7 +3,7 @@
 #include <mutex>
 #include <condition_variable>
 
-using namespace std;  // Adding the std namespace
+using namespace std;  
 
 class NavetteStade {
 private:
