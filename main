@@ -72,13 +72,13 @@ int main() {
     thread omSupporters[40];
 
     // Créer 20 threads pour les supporters PSG et 20 pour les supporters OM
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 20; i++) {
         psgSupporters[i] = thread(tachePSG, ref(ns));
         omSupporters[i] = thread(tacheOM, ref(ns));
     }
 
     // Attendre que tous les threads se terminent
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 20; i++) {
         psgSupporters[i].join();
         omSupporters[i].join();
     }
