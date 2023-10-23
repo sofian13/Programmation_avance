@@ -1,21 +1,22 @@
-
 #include <iostream>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
+using namespace std;  // Adding the std namespace
+
 class NavetteStade {
 private:
-    std::mutex mtx;                            // Mutex pour protéger l'accès aux variables d'état
-    std::condition_variable cv;                // Variable conditionnelle pour synchroniser les threads
-    int supportersPSG = 0;                     // Nombre total de supporters PSG en attente
-    int supportersOM = 0;                      // Nombre total de supporters OM en attente
-    int boarded_PSG = 0;                       // Nombre de supporters PSG actuellement à bord
-    int boarded_OM = 0;                        // Nombre de supporters OM actuellement à bord
+    mutex mtx;                            // Mutex to protect access to state variables
+    condition_variable cv;                // Condition variable to synchronize threads
+    int supportersPSG = 0;                // Total number of PSG supporters waiting
+    int supportersOM = 0;                 // Total number of OM supporters waiting
+    int boarded_PSG = 0;                  // Number of PSG supporters currently on board
+    int boarded_OM = 0;                   // Number of OM supporters currently on board
 
 public:
     void monter(bool estPSG) {
-        std::unique_lock<std::mutex> lock(mtx);
+        unique_lock<mutex> lock(mtx);
 
         if (estPSG) {
             supportersPSG++;
@@ -23,26 +24,26 @@ public:
             supportersOM++;
         }
 
-        // Attendre jusqu'à ce qu'il soit sûr de monter à bord
+        // Wait until it's safe to board
         cv.wait(lock, [&]() {
             return ((supportersPSG == 4) || (supportersOM == 4) ||
                     (supportersPSG == 2 && supportersOM == 2 &&
                      boarded_PSG + boarded_OM == 0));
         });
-       
-        std::cout << estPSG << " : "<<boarded_PSG<< " : "<<boarded_OM<<"\n";
-       
-        if (estPSG && ((boarded_PSG == 0 && boarded_OM <= 2) || boarded_PSG == 1 || boarded_PSG == 3 || (boarded_PSG==2 && boarded_OM==0))) {
+
+        cout << estPSG << " : " << boarded_PSG << " : " << boarded_OM << "\n";
+
+        if (estPSG && ((boarded_PSG == 0 && boarded_OM <= 2) || boarded_PSG == 1 || boarded_PSG == 3 || (boarded_PSG == 2 && boarded_OM == 0))) {
             supportersPSG--;
             boarded_PSG++;
-            std::cout << "Un supporter du PSG monte.\n";
-        } else if(!estPSG && ((boarded_OM == 0 && boarded_PSG <= 2) || boarded_OM == 1 || boarded_OM == 3 || (boarded_OM==2 && boarded_PSG==0))){
+            cout << "A PSG supporter boards.\n";
+        } else if (!estPSG && ((boarded_OM == 0 && boarded_PSG <= 2) || boarded_OM == 1 || boarded_OM == 3 || (boarded_OM == 2 && boarded_PSG == 0))) {
             supportersOM--;
             boarded_OM++;
-            std::cout << "Un supporter de l'OM monte.\n";
+            cout << "An OM supporter boards.\n";
         }
 
-        // Si la navette est pleine, réinitialisez les compteurs et naviguez
+        // If the shuttle is full, reset the counters and navigate
         if (boarded_PSG + boarded_OM == 4) {
             naviguer();
             boarded_PSG = 0;
@@ -52,7 +53,7 @@ public:
     }
 
     void naviguer() {
-        std::cout << "La navette démarre vers le stade!\n\n";
+        cout << "The shuttle departs for the stadium!\n\n";
     }
 };
 
@@ -67,16 +68,16 @@ void tacheOM(NavetteStade& ns) {
 int main() {
     NavetteStade ns;
 
-    std::thread psgSupporters[40];
-    std::thread omSupporters[40];
+    thread psgSupporters[40];
+    thread omSupporters[40];
 
-    // Créer 20 threads pour les supporters PSG et 20 pour les supporters OM
+    // Create 20 threads for PSG supporters and 20 for OM supporters
     for (int i = 0; i < 40; i++) {
-        psgSupporters[i] = std::thread(tachePSG, std::ref(ns));
-        omSupporters[i] = std::thread(tacheOM, std::ref(ns));
+        psgSupporters[i] = thread(tachePSG, ref(ns));
+        omSupporters[i] = thread(tacheOM, ref(ns));
     }
 
-    // Attendre que tous les threads se terminent
+    // Wait for all threads to finish
     for (int i = 0; i < 40; i++) {
         psgSupporters[i].join();
         omSupporters[i].join();
